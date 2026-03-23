@@ -42,6 +42,20 @@ LANDING_HTML = """\
   .subtitle{color:var(--text-secondary);font-size:1.0625rem;margin-bottom:2.5rem;
     max-width:46ch;line-height:1.6;font-weight:400}
 
+  details.how-to-find{background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:1.5rem;
+    box-shadow:var(--shadow-sm)}
+  details.how-to-find summary{font-size:.9375rem;font-weight:600;cursor:pointer;
+    list-style:none;display:flex;align-items:center;gap:.5rem;color:var(--text)}
+  details.how-to-find summary::-webkit-details-marker{display:none}
+  details.how-to-find summary::before{content:'›';font-size:1.1rem;color:var(--accent);
+    transition:transform .2s ease;display:inline-block;width:1rem;text-align:center}
+  details.how-to-find[open] summary::before{transform:rotate(90deg)}
+  details.how-to-find ol{margin-top:1rem;padding-left:1.25rem;color:var(--text-secondary);
+    font-size:.875rem;line-height:1.7}
+  details.how-to-find ol li{margin-bottom:.4rem}
+  details.how-to-find ol strong{color:var(--text);font-weight:600}
+
   .input-group{display:flex;gap:.625rem;margin-bottom:.5rem}
   input[type="url"]{flex:1;background:var(--surface);border:1px solid var(--border);
     border-radius:var(--radius-md);padding:.75rem 1rem;color:var(--text);font-size:.9375rem;
@@ -103,14 +117,24 @@ LANDING_HTML = """\
 <body>
 
 <div class="container">
-  <h1>TicketSwap → <span>Calendar</span></h1>
+  <h1>Your TicketSwap events,<br>in your <span>calendar</span>.</h1>
   <p class="subtitle">
-    Paste your TicketSwap calendar URL and get an ICS feed you can subscribe to in iOS, Google Calendar, or Outlook.
+    Never miss a show. Subscribe once and every event you've saved on TicketSwap appears automatically in iOS Calendar, Google Calendar, or Outlook — always up to date.
   </p>
+
+  <details class="how-to-find">
+    <summary>Where do I find my TicketSwap calendar URL?</summary>
+    <ol>
+      <li><strong>Browser:</strong> Go to <strong>ticketswap.com</strong>, sign in, click your avatar → <strong>Events calendar</strong>. Copy the URL from the address bar.</li>
+      <li><strong>App:</strong> Open the TicketSwap app → <strong>Profile</strong> → <strong>Events calendar</strong> → tap the share icon to copy the link.</li>
+      <li>The URL looks like:<br>
+        <code style="font-family:var(--mono);font-size:.8125rem">ticketswap.com/user/&lt;your-id&gt;/events-calendar</code></li>
+    </ol>
+  </details>
 
   <div class="input-group">
     <input type="url" id="url-input"
-           placeholder="https://www.ticketswap.be/user/.../events-calendar"
+           placeholder="https://www.ticketswap.com/user/.../events-calendar"
            spellcheck="false" autocomplete="off"/>
     <button id="submit-btn" onclick="handleSubmit()">Get feed</button>
   </div>

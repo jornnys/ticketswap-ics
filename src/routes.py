@@ -3,7 +3,9 @@ import time
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
+from pydantic import BaseModel
 
+from analytics import capture
 from frontend import LANDING_HTML
 from ics import generate_ics
 from models import RegisterRequest, RegisterResponse
@@ -20,6 +22,19 @@ async def health():
     return {"status": "ok"}
 
 
+class TrackRequest(BaseModel):
+    event: str
+    properties: dict = {}
+
+
+@router.post("/api/track", status_code=204)
+async def track(body: TrackRequest):
+    """Receive a client-side analytics event and forward it to PostHog."""
+    allowed = {"ics_link_copied"}
+    if body.event in allowed:
+        capture(body.event, body.properties)
+
+
 @router.post("/api/register", response_model=RegisterResponse)
 async def register(body: RegisterRequest, request: Request):
     """Register a TicketSwap calendar URL and get back an ICS feed URL."""
@@ -30,6 +45,7 @@ async def register(body: RegisterRequest, request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
     user_id = make_user_id(slug)
+    capture("link_submitted", distinct_id=user_id)
     with USER_STORE_LOCK:
         USER_STORE[user_id] = {
             "url": url_str.strip(),
@@ -82,4 +98,5 @@ async def get_feed(user_id: str):
 
 @router.get("/", response_class=HTMLResponse)
 async def landing():
+    capture("page_viewed")
     return LANDING_HTML

@@ -12,6 +12,7 @@ dependencies = [
     "icalendar>=6.0.0",
     "pydantic>=2.10.0",
     "cachetools>=7.0.5",
+    "posthog>=3.0.0",
 ]
 
 [project.scripts]

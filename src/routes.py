@@ -1,5 +1,6 @@
 import logging
 import time
+import uuid
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
@@ -15,6 +16,17 @@ from store import ICS_CACHE, ICS_CACHE_LOCK, USER_STORE, USER_STORE_LOCK
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+_UID_COOKIE = "uid"
+_UID_MAX_AGE = 60 * 60 * 24 * 365  # 1 year
+
+
+def _get_or_create_uid(request: Request) -> tuple[str, bool]:
+    """Return (uid, is_new). is_new=True when the cookie was missing."""
+    uid = request.cookies.get(_UID_COOKIE)
+    if uid:
+        return uid, False
+    return str(uuid.uuid4()), True
+
 
 @router.get("/healthz")
 async def health():
@@ -28,11 +40,12 @@ class TrackRequest(BaseModel):
 
 
 @router.post("/api/track", status_code=204)
-async def track(body: TrackRequest):
+async def track(body: TrackRequest, request: Request):
     """Receive a client-side analytics event and forward it to PostHog."""
     allowed = {"ics_link_copied"}
     if body.event in allowed:
-        capture(body.event, body.properties)
+        uid, _ = _get_or_create_uid(request)
+        capture(body.event, body.properties, distinct_id=uid)
 
 
 @router.post("/api/register", response_model=RegisterResponse)
@@ -45,7 +58,8 @@ async def register(body: RegisterRequest, request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
     user_id = make_user_id(slug)
-    capture("link_submitted", distinct_id=user_id)
+    uid, _ = _get_or_create_uid(request)
+    capture("link_submitted", distinct_id=uid)
     with USER_STORE_LOCK:
         USER_STORE[user_id] = {
             "url": url_str.strip(),
@@ -97,6 +111,10 @@ async def get_feed(user_id: str):
 
 
 @router.get("/", response_class=HTMLResponse)
-async def landing():
-    capture("page_viewed")
-    return LANDING_HTML
+async def landing(request: Request):
+    uid, is_new = _get_or_create_uid(request)
+    capture("page_viewed", distinct_id=uid)
+    response = HTMLResponse(content=LANDING_HTML)
+    if is_new:
+        response.set_cookie(_UID_COOKIE, uid, max_age=_UID_MAX_AGE, httponly=True, samesite="lax")
+    return response

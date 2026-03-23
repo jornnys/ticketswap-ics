@@ -10,6 +10,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 
 ENV PORT=8000
+ENV PYTHONPATH=/app/src
 EXPOSE ${PORT}
 
 CMD ["sh", "-c", "uv run uvicorn main:app --host 0.0.0.0 --port ${PORT}"]

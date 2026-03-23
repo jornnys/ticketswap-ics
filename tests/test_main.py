@@ -9,15 +9,10 @@ import pytest
 from fastapi.testclient import TestClient
 from icalendar import Calendar
 
-from main import (
-    USER_STORE,
-    ICS_CACHE,
-    app,
-    extract_user_slug,
-    generate_ics,
-    make_user_id,
-    scrape_ticketswap_events,
-)
+from main import app
+from store import USER_STORE, ICS_CACHE
+from scraper import extract_user_slug, make_user_id, scrape_ticketswap_events
+from ics import generate_ics
 
 client = TestClient(app)
 
@@ -207,13 +202,18 @@ class TestRegister:
         r2 = client.post("/api/register", json={"ticketswap_url": VALID_URL})
         assert r1.json()["user_id"] == r2.json()["user_id"]
 
-    def test_invalid_url_returns_400(self):
+    def test_invalid_domain_returns_400(self):
         resp = client.post("/api/register", json={"ticketswap_url": "https://google.com"})
         assert resp.status_code == 400
 
-    def test_invalid_url_error_message(self):
-        resp = client.post("/api/register", json={"ticketswap_url": "bad"})
+    def test_invalid_domain_error_message(self):
+        resp = client.post("/api/register", json={"ticketswap_url": "https://google.com"})
         assert "Invalid" in resp.json()["detail"]
+
+    def test_non_url_returns_422(self):
+        # Pydantic rejects non-URLs before they reach our handler
+        resp = client.post("/api/register", json={"ticketswap_url": "bad"})
+        assert resp.status_code == 422
 
     def test_user_stored(self):
         client.post("/api/register", json={"ticketswap_url": VALID_URL})
@@ -240,14 +240,14 @@ class TestFeed:
 
     def test_returns_ics_content_type(self):
         uid = self._register()
-        with patch("main.scrape_ticketswap_events", new=AsyncMock(return_value=SAMPLE_EVENTS)):
+        with patch("routes.scrape_ticketswap_events", new=AsyncMock(return_value=SAMPLE_EVENTS)):
             resp = client.get(f"/feed/{uid}.ics")
         assert resp.status_code == 200
         assert "text/calendar" in resp.headers["content-type"]
 
     def test_ics_body_is_valid(self):
         uid = self._register()
-        with patch("main.scrape_ticketswap_events", new=AsyncMock(return_value=SAMPLE_EVENTS)):
+        with patch("routes.scrape_ticketswap_events", new=AsyncMock(return_value=SAMPLE_EVENTS)):
             resp = client.get(f"/feed/{uid}.ics")
         cal = Calendar.from_ical(resp.content)
         events = [c for c in cal.walk() if c.name == "VEVENT"]
@@ -256,7 +256,7 @@ class TestFeed:
     def test_scraper_error_returns_502(self):
         uid = self._register()
         with patch(
-            "main.scrape_ticketswap_events",
+            "routes.scrape_ticketswap_events",
             new=AsyncMock(side_effect=Exception("network error")),
         ):
             resp = client.get(f"/feed/{uid}.ics")
@@ -265,7 +265,7 @@ class TestFeed:
     def test_cache_is_used_on_second_request(self):
         uid = self._register()
         mock_scrape = AsyncMock(return_value=SAMPLE_EVENTS)
-        with patch("main.scrape_ticketswap_events", new=mock_scrape):
+        with patch("routes.scrape_ticketswap_events", new=mock_scrape):
             client.get(f"/feed/{uid}.ics")
             client.get(f"/feed/{uid}.ics")
         # scraper called only once despite two requests
@@ -273,7 +273,7 @@ class TestFeed:
 
     def test_content_disposition_header(self):
         uid = self._register()
-        with patch("main.scrape_ticketswap_events", new=AsyncMock(return_value=SAMPLE_EVENTS)):
+        with patch("routes.scrape_ticketswap_events", new=AsyncMock(return_value=SAMPLE_EVENTS)):
             resp = client.get(f"/feed/{uid}.ics")
         assert uid in resp.headers["content-disposition"]
 

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: ticketswap-ics
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: "8000"

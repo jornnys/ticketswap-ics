@@ -129,8 +129,14 @@ async function handleSubmit() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ ticketswap_url: inp.value.trim() })
     });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.detail || 'Something went wrong');
+    let data;
+    try {
+      data = await resp.json();
+    } catch (_) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`${resp.status}: ${text || 'Something went wrong'}`);
+    }
+    if (!resp.ok) throw new Error(data.detail || `${resp.status}: Something went wrong`);
 
     feedUrls = { webcal: data.webcal_url, https: data.ics_url };
     document.getElementById('webcal-text').textContent = data.webcal_url;
@@ -147,10 +153,13 @@ async function handleSubmit() {
 function copyUrl(type) {
   const url = feedUrls[type];
   if (!url) return;
+  const el = document.getElementById(type === 'webcal' ? 'webcal-url' : 'https-url');
+  const hint = el.querySelector('.copy-hint');
   navigator.clipboard.writeText(url).then(() => {
-    const el = document.getElementById(type === 'webcal' ? 'webcal-url' : 'https-url');
-    const hint = el.querySelector('.copy-hint');
     hint.textContent = 'copied!';
+    setTimeout(() => hint.textContent = 'copy', 1500);
+  }).catch(() => {
+    hint.textContent = 'failed!';
     setTimeout(() => hint.textContent = 'copy', 1500);
   });
 }

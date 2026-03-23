@@ -34,7 +34,10 @@ def generate_ics(events: list[dict], source_url: str) -> bytes:
             event.add("url", ev["url"])
 
         # Stable UID so iOS doesn't duplicate events on refresh
-        uid_source = f"{ev['title']}-{ev['start'].isoformat()}"
+        uid_source = (
+            f"{ev['title'].strip()}|{ev['start'].isoformat()}"
+            f"|{(ev.get('location') or '').strip()}|{(ev.get('url') or '').strip()}"
+        )
         uid = hashlib.md5(uid_source.encode()).hexdigest()
         event.add("uid", f"{uid}@ticketswap-ics")
 

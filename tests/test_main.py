@@ -202,13 +202,18 @@ class TestRegister:
         r2 = client.post("/api/register", json={"ticketswap_url": VALID_URL})
         assert r1.json()["user_id"] == r2.json()["user_id"]
 
-    def test_invalid_url_returns_400(self):
+    def test_invalid_domain_returns_400(self):
         resp = client.post("/api/register", json={"ticketswap_url": "https://google.com"})
         assert resp.status_code == 400
 
-    def test_invalid_url_error_message(self):
-        resp = client.post("/api/register", json={"ticketswap_url": "bad"})
+    def test_invalid_domain_error_message(self):
+        resp = client.post("/api/register", json={"ticketswap_url": "https://google.com"})
         assert "Invalid" in resp.json()["detail"]
+
+    def test_non_url_returns_422(self):
+        # Pydantic rejects non-URLs before they reach our handler
+        resp = client.post("/api/register", json={"ticketswap_url": "bad"})
+        assert resp.status_code == 422
 
     def test_user_stored(self):
         client.post("/api/register", json={"ticketswap_url": VALID_URL})

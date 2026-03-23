@@ -1,8 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 
 
 class RegisterRequest(BaseModel):
-    ticketswap_url: str
+    ticketswap_url: HttpUrl
 
 
 class RegisterResponse(BaseModel):

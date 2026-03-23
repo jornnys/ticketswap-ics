@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "FastAPI dev server",
-      "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
-      "port": 8000
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "PYTHONPATH=src uv run uvicorn main:app --host 0.0.0.0 --port 8001 --reload"],
+      "port": 8001
     }
   ]
 }

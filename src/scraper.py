@@ -54,8 +54,7 @@ async def scrape_ticketswap_events(url: str) -> list[dict]:
     async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
         resp = await client.get(url, headers=headers)
         resp.raise_for_status()
-
-    soup = BeautifulSoup(resp.text, "html.parser")
+        soup = BeautifulSoup(resp.text, "html.parser")
     next_data_tag = soup.find("script", id="__NEXT_DATA__")
     if not next_data_tag:
         raise ValueError("Could not find __NEXT_DATA__ on TicketSwap page")

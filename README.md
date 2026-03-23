@@ -26,8 +26,30 @@ Open [http://localhost:8000](http://localhost:8000), paste your TicketSwap calen
 GET  /                      Landing page
 POST /api/register          Register a TicketSwap URL → returns ICS + webcal URLs
 GET  /feed/{user_id}.ics    Scrape & serve ICS feed (cached 1h)
+POST /api/track             Client-side analytics proxy
 GET  /healthz               Health check
 ```
+
+## Analytics
+
+Usage is tracked via [PostHog](https://posthog.com). Three events are captured:
+
+| Event | Trigger |
+|---|---|
+| `page_viewed` | Someone visits the landing page |
+| `link_submitted` | Someone submits a TicketSwap URL |
+| `ics_link_copied` | Someone copies a generated ICS/webcal link |
+
+A persistent UUID is set as a `uid` cookie (1-year, HttpOnly) on first visit so all events from the same browser share one `distinct_id` in PostHog.
+
+Analytics are disabled when `POSTHOG_API_KEY` is not set.
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `POSTHOG_API_KEY` | — | PostHog project API key (required to enable analytics) |
+| `POSTHOG_HOST` | `https://us.i.posthog.com` | PostHog ingest host (use `https://eu.i.posthog.com` for EU) |
 
 ## Tech stack
 
@@ -35,5 +57,6 @@ GET  /healthz               Health check
 - **httpx** — async HTTP client for scraping
 - **BeautifulSoup4** — HTML parsing
 - **icalendar** — ICS generation
+- **posthog** — analytics
 - **uvicorn** — ASGI server
 - **uv** — dependency management

@@ -5,71 +5,102 @@ LANDING_HTML = """\
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>TicketSwap → Calendar</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
   :root{
-    --bg:#0b0c10; --surface:#151820; --border:#252a36;
-    --text:#e4e6ec; --muted:#8a8fa0; --accent:#00d4aa;
-    --accent-dim:#00d4aa22; --error:#f05e5e; --font:'DM Sans',sans-serif;
-    --mono:'DM Mono',monospace;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;
+    --mono:"SF Mono","Menlo","Courier New",monospace;
+    --bg:#f5f5f7; --surface:#ffffff; --surface-2:#f5f5f7; --border:#d2d2d7;
+    --text:#1d1d1f; --text-secondary:#6e6e73; --text-tertiary:#86868b;
+    --accent:#0071e3; --accent-hover:#0077ed; --accent-text:#ffffff;
+    --error:#ff3b30;
+    --shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+    --shadow-md:0 4px 16px rgba(0,0,0,.10),0 1px 4px rgba(0,0,0,.06);
+    --radius-sm:8px; --radius-md:12px; --radius-lg:18px; --radius-pill:980px;
   }
-  html{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6}
+
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#000000; --surface:#1c1c1e; --surface-2:#2c2c2e; --border:#3a3a3c;
+      --text:#f5f5f7; --text-secondary:#aeaeb2; --text-tertiary:#636366;
+      --accent:#0a84ff; --accent-hover:#409cff;
+      --shadow-sm:0 1px 3px rgba(0,0,0,.3);
+      --shadow-md:0 4px 20px rgba(0,0,0,.5);
+    }
+  }
+
+  html{font-family:var(--font);background:var(--bg);color:var(--text);
+    line-height:1.47059;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
   body{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem}
 
-  .grain{position:fixed;inset:0;pointer-events:none;opacity:.035;
-    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
+  .container{max-width:680px;width:100%;margin-top:clamp(3rem,12vh,9rem)}
 
-  .container{max-width:520px;width:100%;margin-top:clamp(2rem,10vh,8rem)}
-
-  h1{font-size:clamp(1.6rem,4vw,2.2rem);font-weight:700;letter-spacing:-.03em;
-    line-height:1.15;margin-bottom:.5rem}
+  h1{font-size:clamp(1.8rem,4.5vw,2.6rem);font-weight:700;letter-spacing:-.025em;
+    line-height:1.1;margin-bottom:.75rem}
   h1 span{color:var(--accent)}
-  .subtitle{color:var(--muted);font-size:.95rem;margin-bottom:2.5rem;max-width:38ch}
+  .subtitle{color:var(--text-secondary);font-size:1.0625rem;margin-bottom:2.5rem;
+    max-width:46ch;line-height:1.6;font-weight:400}
 
-  .input-group{display:flex;gap:.5rem;margin-bottom:1rem}
+  .input-group{display:flex;gap:.625rem;margin-bottom:.5rem}
   input[type="url"]{flex:1;background:var(--surface);border:1px solid var(--border);
-    border-radius:10px;padding:.75rem 1rem;color:var(--text);font-size:.9rem;
-    font-family:var(--mono);outline:none;transition:border-color .2s}
-  input[type="url"]:focus{border-color:var(--accent)}
-  input[type="url"]::placeholder{color:var(--muted);opacity:.6}
+    border-radius:var(--radius-md);padding:.75rem 1rem;color:var(--text);font-size:.9375rem;
+    font-family:var(--mono);outline:none;box-shadow:var(--shadow-sm);
+    transition:border-color .2s ease,box-shadow .2s ease}
+  input[type="url"]:focus{border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(0,113,227,.25)}
+  input[type="url"]::placeholder{color:var(--text-tertiary)}
 
-  button{background:var(--accent);color:var(--bg);border:none;border-radius:10px;
-    padding:.75rem 1.5rem;font-size:.9rem;font-weight:600;cursor:pointer;
-    font-family:var(--font);white-space:nowrap;transition:opacity .15s}
-  button:hover{opacity:.85}
-  button:disabled{opacity:.5;cursor:not-allowed}
+  button{background:var(--accent);color:var(--accent-text);border:none;
+    border-radius:var(--radius-pill);padding:.75rem 1.375rem;font-size:.9375rem;
+    font-weight:600;font-family:var(--font);letter-spacing:-.01em;cursor:pointer;
+    white-space:nowrap;-webkit-user-select:none;user-select:none;
+    transition:background .15s ease,transform .1s ease}
+  button:hover{background:var(--accent-hover)}
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.4;cursor:not-allowed;transform:none}
 
-  .error{color:var(--error);font-size:.82rem;margin-bottom:1rem;min-height:1.2em}
+  .error{color:var(--error);font-size:.8125rem;min-height:1.25em;
+    margin-bottom:.5rem;padding-left:.25rem}
 
-  .result{background:var(--surface);border:1px solid var(--border);border-radius:14px;
-    padding:1.5rem;display:none;animation:fadeIn .3s ease}
+  .result{background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius-lg);padding:1.5rem;display:none;
+    box-shadow:var(--shadow-md);
+    animation:slideUp .3s cubic-bezier(.25,.46,.45,.94)}
   .result.show{display:block}
-  .result h2{font-size:.85rem;color:var(--muted);font-weight:500;
-    text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem}
-  .feed-url{background:var(--bg);border:1px solid var(--border);border-radius:8px;
-    padding:.65rem .85rem;font-family:var(--mono);font-size:.78rem;color:var(--accent);
-    word-break:break-all;margin-bottom:1rem;position:relative;cursor:pointer;
-    transition:background .15s}
-  .feed-url:hover{background:#0d0e13}
-  .feed-url .copy-hint{position:absolute;right:.6rem;top:50%;transform:translateY(-50%);
-    font-size:.7rem;color:var(--muted);font-family:var(--font)}
+  .result h2{font-size:.6875rem;font-weight:600;color:var(--text-secondary);
+    text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem}
 
-  .instructions{color:var(--muted);font-size:.82rem;line-height:1.7}
-  .instructions li{margin-bottom:.35rem}
-  .instructions code{font-family:var(--mono);color:var(--text);font-size:.78rem;
-    background:var(--bg);padding:.15em .4em;border-radius:4px}
+  .feed-url{background:var(--surface-2);border:1px solid var(--border);
+    border-radius:var(--radius-md);padding:.75rem 1rem;font-family:var(--mono);
+    font-size:.8125rem;color:var(--accent);margin-bottom:.75rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:space-between;gap:.75rem;
+    transition:background .15s ease}
+  .feed-url:hover{background:var(--border)}
+  .url-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .copy-hint{flex-shrink:0;font-size:.75rem;color:var(--text-tertiary);
+    font-family:var(--font);font-weight:500;transition:color .15s}
+  .feed-url:hover .copy-hint{color:var(--accent)}
 
-  footer{margin-top:auto;padding-top:3rem;color:var(--muted);font-size:.75rem;
-    text-align:center;opacity:.5}
+  .instructions{color:var(--text-secondary);font-size:.875rem;line-height:1.6;
+    padding-left:1.25rem}
+  .instructions li{margin-bottom:.5rem}
+  .instructions strong{color:var(--text);font-weight:600}
+  .instructions code{font-family:var(--mono);font-size:.8125rem;color:var(--text);
+    background:var(--surface-2);padding:.1em .4em;border-radius:4px;
+    border:1px solid var(--border)}
 
-  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  footer{margin-top:auto;padding-top:3rem;color:var(--text-tertiary);
+    font-size:.75rem;text-align:center}
+  footer a{color:inherit;text-decoration:underline}
+
+  @keyframes slideUp{
+    from{opacity:0;transform:translateY(12px)}
+    to{opacity:1;transform:translateY(0)}
+  }
 </style>
 </head>
 <body>
-<div class="grain"></div>
 
 <div class="container">
   <h1>TicketSwap → <span>Calendar</span></h1>
@@ -89,12 +120,12 @@ LANDING_HTML = """\
     <h2>Your ICS feed</h2>
 
     <div class="feed-url" id="webcal-url" onclick="copyUrl('webcal')" title="Click to copy">
-      <span id="webcal-text"></span>
+      <span class="url-text" id="webcal-text"></span>
       <span class="copy-hint">copy</span>
     </div>
 
     <div class="feed-url" id="https-url" onclick="copyUrl('https')" title="Click to copy">
-      <span id="https-text"></span>
+      <span class="url-text" id="https-text"></span>
       <span class="copy-hint">copy</span>
     </div>
 
@@ -107,7 +138,7 @@ LANDING_HTML = """\
   </div>
 </div>
 
-<footer>Not affiliated with TicketSwap. Built by <a href="https://www.linkedin.com/in/nysjorn/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline">Jorn</a>.</footer>
+<footer>Not affiliated with TicketSwap. Built by <a href="https://www.linkedin.com/in/nysjorn/" target="_blank" rel="noopener noreferrer">Jorn</a>.</footer>
 
 <script>
 const inp = document.getElementById('url-input');
@@ -121,7 +152,7 @@ async function handleSubmit() {
   err.textContent = '';
   res.classList.remove('show');
   btn.disabled = true;
-  btn.textContent = 'Loading…';
+  btn.textContent = 'Loading\u2026';
 
   try {
     const resp = await fetch('/api/register', {

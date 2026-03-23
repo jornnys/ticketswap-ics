@@ -6,7 +6,7 @@ Convert your TicketSwap events calendar into a subscribable ICS feed for iOS Cal
 
 ```bash
 uv sync
-PYTHONPATH=src uv run uvicorn main:app --reload --port 8000
+uv run uvicorn main:app --reload --port 8000
 ```
 
 Open [http://localhost:8000](http://localhost:8000), paste your TicketSwap calendar URL, and get your ICS feed link.

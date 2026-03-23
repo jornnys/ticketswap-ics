@@ -107,7 +107,7 @@ LANDING_HTML = """\
   </div>
 </div>
 
-<footer>Not affiliated with TicketSwap. Open source side-project.</footer>
+<footer>Not affiliated with TicketSwap. Built by <a href="https://www.linkedin.com/in/nysjorn/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline">Jorn</a>.</footer>
 
 <script>
 const inp = document.getElementById('url-input');

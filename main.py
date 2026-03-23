@@ -4,6 +4,7 @@ MVP: Paste your TicketSwap calendar URL, get a subscribable ICS feed.
 """
 
 import hashlib
+import json
 import re
 import time
 from datetime import datetime, timedelta
@@ -116,74 +117,83 @@ async def scrape_ticketswap_events(url: str) -> list[dict]:
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/120.0.0.0 Safari/537.36"
         ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
     }
 
     async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
         resp = await client.get(url, headers=headers)
         resp.raise_for_status()
 
-    html = resp.text
+    soup = BeautifulSoup(resp.text, "html.parser")
+    next_data_tag = soup.find("script", id="__NEXT_DATA__")
+    if not next_data_tag:
+        raise ValueError("Could not find __NEXT_DATA__ on TicketSwap page")
 
-    # ------------------------------------------------------------------
-    # Strategy A: Try __NEXT_DATA__ first
-    # ------------------------------------------------------------------
-    # soup = BeautifulSoup(html, "html.parser")
-    # next_data_tag = soup.find("script", id="__NEXT_DATA__")
-    # if next_data_tag:
-    #     import json
-    #     data = json.loads(next_data_tag.string)
-    #     # Navigate the JSON to find events — inspect structure first!
-    #     # events_raw = data["props"]["pageProps"]["events"]
-    #     # return [parse_event(e) for e in events_raw]
+    data = json.loads(next_data_tag.string)
+    apollo: dict = data["props"]["pageProps"]["initialApolloState"]
 
-    # ------------------------------------------------------------------
-    # Strategy B: Direct API call
-    # ------------------------------------------------------------------
-    # async with httpx.AsyncClient() as client:
-    #     api_resp = await client.get(
-    #         "https://api.ticketswap.com/some/endpoint",
-    #         headers=headers,
-    #         params={"userId": "..."},
-    #     )
-    #     events_raw = api_resp.json()["data"]["events"]
-    #     return [parse_event(e) for e in events_raw]
+    # The PublicUser entry holds the favoriteEvents connection
+    user = next(
+        (v for k, v in apollo.items() if k.startswith("PublicUser:")),
+        None,
+    )
+    if user is None:
+        raise ValueError("Could not find user data in TicketSwap page")
 
-    # ------------------------------------------------------------------
-    # Strategy C: Parse HTML directly
-    # ------------------------------------------------------------------
-    # soup = BeautifulSoup(html, "html.parser")
-    # event_cards = soup.select("div[data-testid='event-card']")  # adjust selector
-    # events = []
-    # for card in event_cards:
-    #     events.append({
-    #         "title": card.select_one(".event-title").text.strip(),
-    #         "start": datetime.fromisoformat(card["data-date"]),
-    #         "end": None,
-    #         "location": card.select_one(".event-location").text.strip(),
-    #         "url": "https://www.ticketswap.be" + card.find("a")["href"],
-    #         "description": None,
-    #     })
-    # return events
+    # Key format: favoriteEvents({"after":null,"first":10})
+    events_key = next(
+        (k for k in user if k.startswith("favoriteEvents(")),
+        None,
+    )
+    if events_key is None:
+        return []
 
-    # --- MOCK DATA (remove when real scraper is ready) ---
-    return [
-        {
-            "title": "Example Festival 2026",
-            "start": datetime(2026, 7, 15, 14, 0),
-            "end": datetime(2026, 7, 15, 23, 0),
-            "location": "Sportpaleis, Antwerpen",
-            "url": "https://www.ticketswap.be/event/example-festival",
-            "description": "This is a placeholder event. Replace scraper logic!",
-        },
-        {
-            "title": "Concert in AB",
-            "start": datetime(2026, 8, 20, 20, 0),
-            "end": datetime(2026, 8, 20, 23, 30),
-            "location": "Ancienne Belgique, Brussels",
-            "url": "https://www.ticketswap.be/event/concert-ab",
+    connection = user[events_key]
+    edges = connection.get("edges", [])
+
+    # TODO: handle hasNextPage pagination via GraphQL for users with >10 events
+
+    events = []
+    for edge in edges:
+        ref = edge["node"]["__ref"]
+        ev = apollo.get(ref)
+        if ev is None:
+            continue
+
+        # Resolve location: "Venue Name, City"
+        location_str = None
+        loc_ref = (ev.get("location") or {}).get("__ref")
+        if loc_ref:
+            loc = apollo.get(loc_ref, {})
+            venue = loc.get("name", "")
+            city_ref = (loc.get("city") or {}).get("__ref")
+            city = apollo.get(city_ref, {}).get("name", "") if city_ref else ""
+            parts = [p for p in [venue, city] if p]
+            location_str = ", ".join(parts) or None
+
+        # Build canonical event URL
+        event_url = None
+        uri_path = (ev.get("uri") or {}).get("path")
+        if uri_path:
+            # Derive base domain from the original calendar URL
+            domain_match = re.match(r"(https?://(?:www\.)?ticketswap\.[a-z]+)", url)
+            base = domain_match.group(1) if domain_match else "https://www.ticketswap.be"
+            event_url = f"{base}{uri_path}"
+
+        start = datetime.fromisoformat(ev["startDate"])
+        end = datetime.fromisoformat(ev["endDate"]) if ev.get("endDate") else None
+
+        events.append({
+            "title": ev["name"],
+            "start": start,
+            "end": end,
+            "location": location_str,
+            "url": event_url,
             "description": None,
-        },
-    ]
+        })
+
+    return events
 
 
 # ---------------------------------------------------------------------------

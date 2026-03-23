@@ -159,6 +159,69 @@ class TestGenerateIcs:
         events = [c for c in cal.walk() if c.name == "VEVENT"]
         assert events == []
 
+    def test_url_field_set(self):
+        ics = generate_ics(SAMPLE_EVENTS, VALID_URL)
+        cal = self._parse(ics)
+        tomorrowland = next(
+            c for c in cal.walk()
+            if c.name == "VEVENT" and str(c.get("summary")) == "Tomorrowland 2026"
+        )
+        assert str(tomorrowland.get("url")) == "https://www.ticketswap.be/event/tomorrowland-2026"
+
+    def test_url_field_absent_when_none(self):
+        ics = generate_ics(SAMPLE_EVENTS, VALID_URL)
+        cal = self._parse(ics)
+        no_url = next(
+            c for c in cal.walk()
+            if c.name == "VEVENT" and str(c.get("summary")) == "Concert no end"
+        )
+        assert no_url.get("url") is None
+
+    def test_description_field_set(self):
+        ics = generate_ics(SAMPLE_EVENTS, VALID_URL)
+        cal = self._parse(ics)
+        tomorrowland = next(
+            c for c in cal.walk()
+            if c.name == "VEVENT" and str(c.get("summary")) == "Tomorrowland 2026"
+        )
+        assert str(tomorrowland.get("description")) == "Weekend 1"
+
+    def test_description_absent_when_none(self):
+        ics = generate_ics(SAMPLE_EVENTS, VALID_URL)
+        cal = self._parse(ics)
+        no_desc = next(
+            c for c in cal.walk()
+            if c.name == "VEVENT" and str(c.get("summary")) == "Concert no end"
+        )
+        assert no_desc.get("description") is None
+
+    def test_calendar_properties(self):
+        ics = generate_ics([], VALID_URL)
+        cal = self._parse(ics)
+        assert "ticketswap-ics" in str(cal.get("prodid")).lower()
+        assert str(cal.get("calscale")) == "GREGORIAN"
+        assert str(cal.get("x-wr-calname")) == "TicketSwap Events"
+
+    def test_uid_stable_when_location_changes(self):
+        """Changing location must NOT change UID (backward compat)."""
+        event_a = {**SAMPLE_EVENTS[0], "location": "Boom, Belgium"}
+        event_b = {**SAMPLE_EVENTS[0], "location": "Completely Different Venue"}
+        ics_a = generate_ics([event_a], VALID_URL)
+        ics_b = generate_ics([event_b], VALID_URL)
+        uid_a = next(str(c.get("uid")) for c in self._parse(ics_a).walk() if c.name == "VEVENT")
+        uid_b = next(str(c.get("uid")) for c in self._parse(ics_b).walk() if c.name == "VEVENT")
+        assert uid_a == uid_b
+
+    def test_uid_stable_when_url_changes(self):
+        """Changing url must NOT change UID (backward compat)."""
+        event_a = {**SAMPLE_EVENTS[0], "url": "https://www.ticketswap.be/event/original"}
+        event_b = {**SAMPLE_EVENTS[0], "url": "https://www.ticketswap.be/event/changed"}
+        ics_a = generate_ics([event_a], VALID_URL)
+        ics_b = generate_ics([event_b], VALID_URL)
+        uid_a = next(str(c.get("uid")) for c in self._parse(ics_a).walk() if c.name == "VEVENT")
+        uid_b = next(str(c.get("uid")) for c in self._parse(ics_b).walk() if c.name == "VEVENT")
+        assert uid_a == uid_b
+
 
 # ---------------------------------------------------------------------------
 # /healthz
@@ -277,6 +340,13 @@ class TestFeed:
             resp = client.get(f"/feed/{uid}.ics")
         assert uid in resp.headers["content-disposition"]
 
+    def test_cache_control_header(self):
+        uid = self._register()
+        with patch("routes.scrape_ticketswap_events", new=AsyncMock(return_value=SAMPLE_EVENTS)):
+            resp = client.get(f"/feed/{uid}.ics")
+        assert "public" in resp.headers["cache-control"]
+        assert "max-age=3600" in resp.headers["cache-control"]
+
 
 # ---------------------------------------------------------------------------
 # / landing page
@@ -290,6 +360,14 @@ class TestLanding:
     def test_contains_form(self):
         resp = client.get("/")
         assert "ticketswap" in resp.text.lower()
+
+    def test_has_url_input(self):
+        resp = client.get("/")
+        assert 'type="url"' in resp.text
+
+    def test_no_google_fonts(self):
+        resp = client.get("/")
+        assert "fonts.googleapis.com" not in resp.text
 
 
 # ---------------------------------------------------------------------------
@@ -439,3 +517,31 @@ class TestScraper:
         with patch("httpx.AsyncClient", return_value=mc):
             events = await scrape_ticketswap_events(VALID_URL)
         assert events == []
+
+    @pytest.mark.asyncio
+    async def test_no_user_key_raises(self):
+        """Apollo state with no PublicUser: key should raise ValueError."""
+        apollo = _fake_apollo()
+        del apollo["PublicUser:abc"]
+        mc = _mock_httpx(_make_next_data_html(apollo))
+        with patch("httpx.AsyncClient", return_value=mc):
+            with pytest.raises(ValueError, match="user data"):
+                await scrape_ticketswap_events(VALID_URL)
+
+    @pytest.mark.asyncio
+    async def test_no_favorite_events_key_returns_empty(self):
+        """User object with no favoriteEvents key should return empty list."""
+        apollo = _fake_apollo()
+        key = next(k for k in apollo["PublicUser:abc"] if k.startswith("favoriteEvents("))
+        del apollo["PublicUser:abc"][key]
+        mc = _mock_httpx(_make_next_data_html(apollo))
+        with patch("httpx.AsyncClient", return_value=mc):
+            events = await scrape_ticketswap_events(VALID_URL)
+        assert events == []
+
+    @pytest.mark.asyncio
+    async def test_event_end_none_when_missing(self, mock_client):
+        """Event with no endDate should have end=None."""
+        events = await scrape_ticketswap_events(VALID_URL)
+        no_end = next(e for e in events if e["title"] == "No Location Event")
+        assert no_end["end"] is None

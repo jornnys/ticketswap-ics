@@ -213,6 +213,11 @@ function copyUrl(type) {
   navigator.clipboard.writeText(url).then(() => {
     hint.textContent = 'copied!';
     setTimeout(() => hint.textContent = 'copy', 1500);
+    fetch('/api/track', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ event: 'ics_link_copied', properties: { url_type: type } })
+    }).catch(() => {});
   }).catch(() => {
     hint.textContent = 'failed!';
     setTimeout(() => hint.textContent = 'copy', 1500);
